@@ -20,6 +20,9 @@ dependencies = [
 
 dynamic = ['version']
 
+# NEVER INSTALL databricks-connect with pyspark.
+# You will get conflicts!
+# databricks-connect already has pyspark inside.
 [project.optional-dependencies]
 dev = ["databricks-connect>=16.0, <17",
        "ipykernel>=6.29.5, <7",

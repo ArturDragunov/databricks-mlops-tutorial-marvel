@@ -40,6 +40,27 @@ class ProjectConfig(BaseModel):
 
             return cls(**config_dict)
 
+# So this line:
+# return cls(**config_dict)
+
+# is equivalent to:
+
+# return ProjectConfig(
+#     num_features = config_dict["num_features"],
+#     cat_features = config_dict["cat_features"],
+#     target = config_dict["target"],
+#     catalog_name = config_dict["catalog_name"],
+#     schema_name = config_dict["schema_name"],
+#     parameters = config_dict["parameters"],
+#     experiment_name_basic = config_dict["experiment_name_basic"],
+#     experiment_name_custom = config_dict["experiment_name_custom"]
+# )
+
+# Pydantic’s BaseModel automatically maps keyword arguments to the model’s fields,
+# turning the YAML content into a fully instantiated object of type ProjectConfig.
+# If the YAML contains extra keys not in the model,
+# Pydantic will raise a validation error unless model_config.extra = "allow" is set.
+
 
 class Tags(BaseModel):
     """Model for MLflow tags."""

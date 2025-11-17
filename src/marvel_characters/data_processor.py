@@ -111,7 +111,7 @@ class DataProcessor:
         return train_set, test_set
 
     def save_to_catalog(self, train_set: pd.DataFrame, test_set: pd.DataFrame) -> None:
-        """Save the train and test sets into Databricks tables.
+        """Save the train and test sets into Databricks tables in Catalog.
 
         :param train_set: The training DataFrame to be saved.
         :param test_set: The test DataFrame to be saved.

@@ -9,6 +9,7 @@
 # sys.path.append(str(Path.cwd().parent / 'src'))
 
 # COMMAND ----------
+# we don't need to run previous cells, as we already have active venv. we don't need to install packages.
 import pandas as pd
 import yaml
 from loguru import logger
@@ -25,6 +26,7 @@ logger.info(yaml.dump(config, default_flow_style=False))
 # COMMAND ----------
 
 # Load the Marvel characters dataset
+# We need sparkSession to upload our data to unity catalog
 spark = SparkSession.builder.getOrCreate()
 
 filepath = "../data/marvel_characters_dataset.csv"
