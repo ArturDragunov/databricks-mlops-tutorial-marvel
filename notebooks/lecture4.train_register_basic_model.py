@@ -28,6 +28,7 @@ if not is_databricks():
 
 config = ProjectConfig.from_yaml(config_path="../project_config_marvel.yml", env="dev")
 spark = SparkSession.builder.getOrCreate()
+# for now those are random values, but in deployment we take them from git
 tags = Tags(**{"git_sha": "abcd12345", "branch": "main"})
 
 # COMMAND ----------
@@ -48,6 +49,7 @@ basic_model.log_model()
 
 # COMMAND ----------
 logged_model = mlflow.get_logged_model(basic_model.model_info.model_id)
+# you can load logged model and see its definitions
 model = mlflow.sklearn.load_model(f"models:/{basic_model.model_info.model_id}")
 
 # COMMAND ----------
@@ -64,7 +66,7 @@ logged_model.metrics
 run_id = mlflow.search_runs(
     experiment_names=["/Shared/marvel-characters-basic"], filter_string="tags.git_sha='abcd12345'"
 ).run_id[0]
-
+# you can load a model either using run id or model id. Same model, but different ways of retrieving
 model = mlflow.sklearn.load_model(f"runs:/{run_id}/lightgbm-pipeline-model")
 
 # COMMAND ----------
@@ -74,7 +76,7 @@ run = mlflow.get_run(basic_model.run_id)
 inputs = run.inputs.dataset_inputs
 training_input = next((x for x in inputs if len(x.tags) > 0 and x.tags[0].value == 'training'), None)
 training_source = mlflow.data.get_source(training_input)
-training_source.load()
+training_source.load() # load training input
 # COMMAND ----------
 testing_input = next((x for x in inputs if len(x.tags) > 0 and x.tags[0].value == 'testing'), None)
 testing_source = mlflow.data.get_source(testing_input)
@@ -90,6 +92,9 @@ v = mlflow.search_model_versions(
 print(v[0].__dict__)
 
 # COMMAND ----------
-# not supported
+# searching for a model by tag is not supported
 v = mlflow.search_model_versions(
     filter_string="tags.git_sha='abcd12345'")
+
+# COMMAND ----------
+ 

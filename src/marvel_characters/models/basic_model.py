@@ -57,6 +57,8 @@ class BasicModel:
         Splits data into features (X_train, X_test) and target (y_train, y_test).
         """
         logger.info("🔄 Loading data from Databricks tables...")
+        # in lecture2 we already saved train and test datasets to DeltaTable.
+        # now we load them using pyspark and transform to pandas
         self.train_set_spark = self.spark.table(f"{self.catalog_name}.{self.schema_name}.train_set")
         self.train_set = self.train_set_spark.toPandas()
         self.test_set_spark = self.spark.table(f"{self.catalog_name}.{self.schema_name}.test_set")
@@ -66,9 +68,13 @@ class BasicModel:
         self.y_train = self.train_set[self.target]
         self.X_test = self.test_set[self.num_features + self.cat_features]
         self.y_test = self.test_set[self.target]
+        # eval_data is for mlflow evaluation step below
         self.eval_data = self.test_set[self.num_features + self.cat_features + [self.target]]
 
+        # Delta tables are like Git for data - they track every version of your table.
+        # Each time you modify/save the table, Delta creates a new version.
         train_delta_table = DeltaTable.forName(self.spark, f"{self.catalog_name}.{self.schema_name}.train_set")
+        # we are going to the history and take the most recent version
         self.train_data_version = str(train_delta_table.history().select("version").first()[0])
         test_delta_table = DeltaTable.forName(self.spark, f"{self.catalog_name}.{self.schema_name}.test_set")
         self.test_data_version = str(test_delta_table.history().select("version").first()[0])
@@ -99,7 +105,8 @@ class BasicModel:
                 return self
 
             def fit_transform(self, X: pd.DataFrame, y: pd.Series | None = None) -> pd.DataFrame:
-                """Fit and transform the DataFrame X."""
+                """Fit and transform the DataFrame X. It learns categorical features in data.
+                In case unknown feature appears, it gets -1."""
                 X = X.copy()
                 for col in self.cat_features:
                     c = pd.Categorical(X[col])
@@ -118,7 +125,7 @@ class BasicModel:
         preprocessor = ColumnTransformer(
             transformers=[("cat", CatToIntTransformer(self.cat_features), self.cat_features)], remainder="passthrough"
         )
-        self.pipeline = Pipeline(
+        self.pipeline = Pipeline( # lgbm has sklearn compatible format
             steps=[("preprocessor", preprocessor), ("regressor", LGBMClassifier(**self.parameters))]
         )
         logger.info("✅ Preprocessing pipeline defined.")
@@ -134,19 +141,50 @@ class BasicModel:
         with mlflow.start_run(tags=self.tags) as run:
             self.run_id = run.info.run_id
 
-            signature = infer_signature(model_input=self.X_train, model_output=self.pipeline.predict(self.X_train))
+
+            # The signature defines your model's input/output schema for MLflow tracking.
+            # pythonsignature = infer_signature(
+            # model_input=self.X_train, 
+            # model_output=self.pipeline.predict(self.X_train)
+            # )
+            # It captures:
+            # Input schema: column names and data types (e.g., APPEARANCES: long, ALIGN: string)
+            # Output schema: prediction type (e.g., long for binary classification)
+
+            # Why It's Needed:
+            # When you deploy the model, MLflow uses the signature to:
+
+            # Validate inputs at inference time (reject requests with wrong columns/types)
+            # Document the API (show users what data format to send)
+            # Enable model serving (auto-generate REST API endpoints with proper schema validation)
+
+            # Without it, you'd have no runtime checks that incoming data matches what the model expects.
+            signature = infer_signature(model_input=self.X_train,
+                                        model_output=self.pipeline.predict(self.X_train))
+
+
+            # MLflow logs which exact version of the data trained your model.
+            # If someone updates the train_set table tomorrow,
+            # you can still trace back that your model used version 3, not version 4
+            #  Essential for:
+            #     Debugging ("did the data change?")
+            #     Reproducibility ("retrain on the exact same data")
+            #     Auditing ("what data was this model trained on?")
             train_dataset = mlflow.data.from_spark(
                 self.train_set_spark,
                 table_name=f"{self.catalog_name}.{self.schema_name}.train_set",
-                version=self.train_data_version,
+                version=self.train_data_version, # ← logged for reproducibility
             )
             mlflow.log_input(train_dataset, context="training")
+            
             test_dataset = mlflow.data.from_spark(
                 self.test_set_spark,
                 table_name=f"{self.catalog_name}.{self.schema_name}.test_set",
                 version=self.test_data_version,
             )
             mlflow.log_input(test_dataset, context="testing")
+            
+            # we use mlflow.sklearn, because Pipeline is from sklearn even though we use LGBM
             self.model_info = mlflow.sklearn.log_model(
                 sk_model=self.pipeline,
                 artifact_path="lightgbm-pipeline-model",
@@ -155,7 +193,7 @@ class BasicModel:
             )
             eval_data = self.X_test.copy()
             eval_data[self.config.target] = self.y_test
-
+            # evaluation metrics are computed separately and saved to result
             result = mlflow.models.evaluate(
                 self.model_info.model_uri,
                 eval_data,
@@ -205,7 +243,8 @@ class BasicModel:
         client = MlflowClient()
         client.set_registered_model_alias(
             name=self.model_name,
-            alias="latest-model",
+            # by setting this alias, it will be easier to retrieve the latest model later
+            alias="latest-model", 
             version=latest_version,
         )
         return latest_version

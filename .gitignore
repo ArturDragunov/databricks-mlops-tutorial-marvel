@@ -85,6 +85,7 @@ logs/
 output/
 outputs/
 checkpoints/
+downloaded_artifacts/
 
 # MLflow
 mlruns/

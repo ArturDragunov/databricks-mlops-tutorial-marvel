@@ -25,6 +25,7 @@ class MarvelModelWrapper(mlflow.pyfunc.PythonModel):
 
     def predict(self, context: PythonModelContext, model_input: pd.DataFrame | np.ndarray) -> dict:
         """Predict the survival of a character."""
+        # self.model is sklearn Pipeline we defined for basic model
         predictions = self.model.predict(model_input)
         return adjust_predictions(predictions)
 

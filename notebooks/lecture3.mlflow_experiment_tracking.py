@@ -8,7 +8,8 @@ from dotenv import load_dotenv
 
 # Set up Databricks or local MLflow tracking
 def is_databricks() -> bool:
-    """Check if the code is running in a Databricks environment."""
+    """Check if the code is running in a Databricks environment.
+    Returns True if we run the code in Databricks, otherwise False."""
     return "DATABRICKS_RUNTIME_VERSION" in os.environ
 
 # COMMAND ----------
@@ -18,17 +19,23 @@ mlflow.get_tracking_uri()
 if not is_databricks():
     load_dotenv()
     profile = os.environ.get("PROFILE")
+    # we connect mlflow to our databricks
     mlflow.set_tracking_uri(f"databricks://{profile}")
+    # important to be set as well from mlflow>3.0 even though we don't do it yet
     mlflow.set_registry_uri(f"databricks-uc://{profile}")
 
 mlflow.get_tracking_uri()
 # COMMAND ----------
+# We need to set_experiment, because it organizes MLflow runs in one place
+# (/Shared/marvel-demo) instead of scattering them across default experiments.
+# Makes it easier to compare results and share with your team.
+# Without it MLflow creates a default experiment (usually in your user folder)
 experiment = mlflow.set_experiment(experiment_name="/Shared/marvel-demo")
 mlflow.set_experiment_tags({"repository_name": "marvelousmlops/marvel-characters"})
 
 print(experiment)
 # COMMAND ----------
-# dump class attributes in a json file for visualization
+# dump class attributes in a json file for visualization with JSON Lens (right-click on JSON)
 os.makedirs("../demo_artifacts", exist_ok=True)
 with open("../demo_artifacts/mlflow_experiment.json", "w") as json_file:
     json.dump(experiment.__dict__, json_file, indent=4)
@@ -37,7 +44,7 @@ with open("../demo_artifacts/mlflow_experiment.json", "w") as json_file:
 # get experiment by id
 mlflow.get_experiment(experiment.experiment_id)
 # COMMAND ----------
-# search for experiment
+# search for experiment using TAG which we defined in set_experiment_tags
 experiments = mlflow.search_experiments(
     filter_string="tags.repository_name='marvelousmlops/marvel-characters'"
 )
@@ -45,14 +52,14 @@ print(experiments)
 
 # COMMAND ----------
 # start a run
-mlflow.start_run()
+mlflow.start_run() # <ActiveRun: >
 
 # COMMAND ----------
-# get active run
+# get active run attributes
 print(mlflow.active_run().__dict__)
 
 # COMMAND ----------
-mlflow.end_run()
+mlflow.end_run() # you can see experiment results by selecting the URL
 print(mlflow.active_run() is None)
 
 # COMMAND ----------
@@ -62,6 +69,7 @@ with mlflow.start_run(
     tags={"git_sha": "1234567890abcd"},
     description="marvel character prediction demo run",
 ) as run:
+    # everything under this run will be tracked under marvel-demo experiment
     run_id = run.info.run_id
     mlflow.log_params({"type": "marvel_demo"})
     mlflow.log_metrics({"metric1": 1.0, "metric2": 2.0})
@@ -69,6 +77,7 @@ with mlflow.start_run(
 print(mlflow.active_run() is None)
 
 # COMMAND ----------
+# get run by run_id
 run_info = mlflow.get_run(run_id=run_id).to_dictionary()
 print(run_info)
 
@@ -92,6 +101,7 @@ run_info = mlflow.get_run(run_id=f"{run_id}").to_dictionary()
 print(run_info)
 
 # COMMAND ----------
+# we are reactivating old run
 mlflow.start_run(run_id=run_id)
 
 # COMMAND ----------
@@ -131,7 +141,7 @@ import numpy as np
 for i in range(0,3):
     image = np.random.randint(0, 256, size=(100, 100, 3), dtype=np.uint8)
     mlflow.log_image(image, key="demo_image", step=i)
-
+# we logged figures and images!
 mlflow.end_run()
 
 # COMMAND ----------
@@ -140,6 +150,7 @@ from time import time
 
 time_hour_ago = int(time() - 3600) * 1000
 
+# multiple ways how to search for your experiments or runs
 runs = mlflow.search_runs(
     search_all_experiments=True, #or experiment_ids=[], or experiment_names=[]
     order_by=["start_time DESC"],
@@ -161,7 +172,8 @@ mlflow.artifacts.load_dict(f"{artifact_uri}/dict_example.json")
 # COMMAND ----------
 mlflow.artifacts.load_image(f"{artifact_uri}/figure.png")
 # COMMAND ----------
-# download artifacts
+# We can download all artifacts for other selected run
+# it creates a new folder -> (download_artifacts)
 mlflow.artifacts.download_artifacts(
     artifact_uri=f"{artifact_uri}/demo_artifacts",
     dst_path="../downloaded_artifacts")
