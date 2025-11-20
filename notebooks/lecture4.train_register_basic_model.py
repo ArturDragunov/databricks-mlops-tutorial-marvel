@@ -28,7 +28,8 @@ if not is_databricks():
 
 config = ProjectConfig.from_yaml(config_path="../project_config_marvel.yml", env="dev")
 spark = SparkSession.builder.getOrCreate()
-# for now those are random values, but in deployment we take them from git
+# for now those are random values, but in deployment we take them from git and pass them to the code
+# using databricks asset bundles
 tags = Tags(**{"git_sha": "abcd12345", "branch": "main"})
 
 # COMMAND ----------
@@ -48,8 +49,8 @@ basic_model.train()
 basic_model.log_model()
 
 # COMMAND ----------
+# you can load logged model and see its definitions. Same way as you do it in Databricks UI
 logged_model = mlflow.get_logged_model(basic_model.model_info.model_id)
-# you can load logged model and see its definitions
 model = mlflow.sklearn.load_model(f"models:/{basic_model.model_info.model_id}")
 
 # COMMAND ----------
@@ -76,18 +77,19 @@ run = mlflow.get_run(basic_model.run_id)
 inputs = run.inputs.dataset_inputs
 training_input = next((x for x in inputs if len(x.tags) > 0 and x.tags[0].value == 'training'), None)
 training_source = mlflow.data.get_source(training_input)
-training_source.load() # load training input
+training_source.load() # load training input -> the one used during experiment run
 # COMMAND ----------
 testing_input = next((x for x in inputs if len(x.tags) > 0 and x.tags[0].value == 'testing'), None)
 testing_source = mlflow.data.get_source(testing_input)
 testing_source.load()
 
 # COMMAND ----------
-basic_model.register_model()
+basic_model.register_model() # moves model to Unity Catalog
 
 # COMMAND ----------
 # only searching by name is supported
 v = mlflow.search_model_versions(
+    # name = f"{self.catalog_name}.{self.schema_name}.marvel_character_model_basic"
     filter_string=f"name='{basic_model.model_name}'")
 print(v[0].__dict__)
 

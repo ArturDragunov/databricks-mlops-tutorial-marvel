@@ -17,14 +17,19 @@ def adjust_predictions(predictions: np.ndarray | list[int]) -> dict[str, list[st
 
 
 class MarvelModelWrapper(mlflow.pyfunc.PythonModel):
-    """Wrapper for LightGBM model."""
+    """Wrapper for LightGBM model. This whole class is just for 1 additional step:
+    for adjust_predictions() function."""
 
     def load_context(self, context: PythonModelContext) -> None:
         """Load the LightGBM model."""
-        self.model = mlflow.sklearn.load_model(context.artifacts["lightgbm-pipeline"])
+        # loading the model using model uri
+        self.model = mlflow.sklearn.load_model(
+            context.artifacts["lightgbm-pipeline"])
 
     def predict(self, context: PythonModelContext, model_input: pd.DataFrame | np.ndarray) -> dict:
-        """Predict the survival of a character."""
+        """Predict the survival of a character.
+        context parameter should be always there even though we are not using it.
+        Otherwise, it will fail."""
         # self.model is sklearn Pipeline we defined for basic model
         predictions = self.model.predict(model_input)
         return adjust_predictions(predictions)
@@ -53,9 +58,11 @@ class MarvelModelWrapper(mlflow.pyfunc.PythonModel):
             for package in code_paths:
                 whl_name = package.split("/")[-1]
                 additional_pip_deps.append(f"code/{whl_name}")
+                # we specify that we need to install the wheel!
             conda_env = _mlflow_conda_env(additional_pip_deps=additional_pip_deps)
 
-            signature = infer_signature(model_input=input_example, model_output={"Survival prediction": ["alive"]})
+            signature = infer_signature(model_input=input_example,
+                                        model_output={"Survival prediction": ["alive"]})
             model_info = mlflow.pyfunc.log_model(
                 python_model=self,
                 name="pyfunc-wrapper",
@@ -64,6 +71,8 @@ class MarvelModelWrapper(mlflow.pyfunc.PythonModel):
                 code_paths=code_paths,
                 conda_env=conda_env,
             )
+        
+        # just as we did for the basic model, we register our custom model at UC
         client = MlflowClient()
         registered_model = mlflow.register_model(
             model_uri=model_info.model_uri,

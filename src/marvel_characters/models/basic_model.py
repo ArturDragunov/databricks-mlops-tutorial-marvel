@@ -55,6 +55,8 @@ class BasicModel:
         """Load training and testing data from Delta tables.
 
         Splits data into features (X_train, X_test) and target (y_train, y_test).
+        
+        Spark->Pandas->X/y split & Delta table + Data Version
         """
         logger.info("🔄 Loading data from Databricks tables...")
         # in lecture2 we already saved train and test datasets to DeltaTable.
@@ -73,6 +75,9 @@ class BasicModel:
 
         # Delta tables are like Git for data - they track every version of your table.
         # Each time you modify/save the table, Delta creates a new version.
+        #                                                     mlops_dev.marvel_characters.train_set
+        # mlops_dev.marvel_characters we created manually initially, and train set was added in previous lectures
+        # we take train_delta_table from the same place as train_set_spark. It's just used for diff purposes.
         train_delta_table = DeltaTable.forName(self.spark, f"{self.catalog_name}.{self.schema_name}.train_set")
         # we are going to the history and take the most recent version
         self.train_data_version = str(train_delta_table.history().select("version").first()[0])
@@ -92,6 +97,9 @@ class BasicModel:
             """Transformer that encodes categorical columns as integer codes for LightGBM.
 
             Unknown categories at transform time are encoded as -1.
+            
+            We define class inside other class's method, because this way we don't need to deal\
+                with private packages otherwise. Better way is to use pyfunc to deal with these dependencies.
             """
 
             def __init__(self, cat_features: list[str]) -> None:
@@ -101,12 +109,12 @@ class BasicModel:
 
             def fit(self, X: pd.DataFrame, y: pd.Series | None = None) -> None:
                 """Fit the transformer to the DataFrame X."""
-                self.fit_transform(X)
+                self.fit_transform(X) # method defined below
                 return self
 
             def fit_transform(self, X: pd.DataFrame, y: pd.Series | None = None) -> pd.DataFrame:
-                """Fit and transform the DataFrame X. It learns categorical features in data.
-                In case unknown feature appears, it gets -1."""
+                """Fit and transform the DataFrame X. It learns categorical features in data and
+                transforms them into integers. In case unknown feature appears, it gets -1."""
                 X = X.copy()
                 for col in self.cat_features:
                     c = pd.Categorical(X[col])
@@ -124,7 +132,7 @@ class BasicModel:
 
         preprocessor = ColumnTransformer(
             transformers=[("cat", CatToIntTransformer(self.cat_features), self.cat_features)], remainder="passthrough"
-        )
+        ) # we use sklearn Pipeline to define chain of steps
         self.pipeline = Pipeline( # lgbm has sklearn compatible format
             steps=[("preprocessor", preprocessor), ("regressor", LGBMClassifier(**self.parameters))]
         )
@@ -136,14 +144,21 @@ class BasicModel:
         self.pipeline.fit(self.X_train, self.y_train)
 
     def log_model(self) -> None:
-        """Log the model using MLflow."""
+        """Log the model using MLflow. We set experiment and we start mlflow run.
+        There inside we log our train/test sets (mlflow.log_input()), we 
+        log the model (mlflow.sklearn.log_model()), and at the end we evaluate
+        our logged model using default mlflow parameters.
+        
+        We later can find our logged model in databricks experiments section.
+        """
         mlflow.set_experiment(self.experiment_name)
+        # with run tags it will be possible to search for the run later
         with mlflow.start_run(tags=self.tags) as run:
             self.run_id = run.info.run_id
 
 
             # The signature defines your model's input/output schema for MLflow tracking.
-            # pythonsignature = infer_signature(
+            # signature = infer_signature(
             # model_input=self.X_train, 
             # model_output=self.pipeline.predict(self.X_train)
             # )
@@ -173,7 +188,7 @@ class BasicModel:
             train_dataset = mlflow.data.from_spark(
                 self.train_set_spark,
                 table_name=f"{self.catalog_name}.{self.schema_name}.train_set",
-                version=self.train_data_version, # ← logged for reproducibility
+                version=self.train_data_version, # ← logged for reproducibility. taken from DeltaTable
             )
             mlflow.log_input(train_dataset, context="training")
             
@@ -187,16 +202,14 @@ class BasicModel:
             # we use mlflow.sklearn, because Pipeline is from sklearn even though we use LGBM
             self.model_info = mlflow.sklearn.log_model(
                 sk_model=self.pipeline,
-                artifact_path="lightgbm-pipeline-model",
+                artifact_path="lightgbm-pipeline-model", # model folder (can be any name)
                 signature=signature,
                 input_example=self.X_test[0:1],
             )
-            eval_data = self.X_test.copy()
-            eval_data[self.config.target] = self.y_test
             # evaluation metrics are computed separately and saved to result
             result = mlflow.models.evaluate(
                 self.model_info.model_uri,
-                eval_data,
+                self.eval_data,
                 targets=self.config.target,
                 model_type="classifier",
                 evaluators=["default"],
@@ -232,9 +245,11 @@ class BasicModel:
         """Register model in Unity Catalog."""
         logger.info("🔄 Registering the model in UC...")
         registered_model = mlflow.register_model(
+            # lightgbm-pipeline-model is the same as artifact_path in log_model
             model_uri=f"runs:/{self.run_id}/lightgbm-pipeline-model",
             name=self.model_name,
-            tags=self.tags,
+            tags=self.tags, # tags make it easy to trace it back to the code version we used
+            # Idea is that by connecting git hash with tags we can match exactly the code with the model
         )
         logger.info(f"✅ Model registered as version {registered_model.version}.")
 
