@@ -1,12 +1,12 @@
 {
     "info": {
-        "artifact_uri": "dbfs:/databricks/mlflow-tracking/1425634382141336/e38f2c8fc3ac41c488d918f40b626178/artifacts",
-        "end_time": 1763393639443,
+        "artifact_uri": "dbfs:/databricks/mlflow-tracking/1425634382141336/d275be7e6df5485bab4be61018c2d82c/artifacts",
+        "end_time": 1763744818508,
         "experiment_id": "1425634382141336",
         "lifecycle_stage": "active",
-        "run_id": "e38f2c8fc3ac41c488d918f40b626178",
+        "run_id": "d275be7e6df5485bab4be61018c2d82c",
         "run_name": "marvel-demo-run",
-        "start_time": 1763393638287,
+        "start_time": 1763744817560,
         "status": "FINISHED",
         "user_id": ""
     },
@@ -20,16 +20,16 @@
         },
         "tags": {
             "git_sha": "1234567890abcd",
-            "mlflow.databricks.cluster.id": "1117-151557-yazleryp-v2n",
+            "mlflow.databricks.cluster.id": "1121-165035-5mz84mb5-v2n",
             "mlflow.databricks.cluster.info": "{\"cluster_name\":\"\",\"spark_version\":\"17.2.x-photon-scala2.13\",\"autotermination_minutes\":120}",
             "mlflow.databricks.cluster.libraries": "{\"installable\":[],\"redacted\":[]}",
             "mlflow.note.content": "marvel character prediction demo run",
-            "mlflow.runColor": "#da4c4c",
+            "mlflow.runColor": "#5bc5db",
             "mlflow.runName": "marvel-demo-run",
             "mlflow.source.name": "c:\\Users\\dragu\\Documents\\GIT\\databricks-mlops-tutorial-marvel\\.venv\\Lib\\site-packages\\ipykernel_launcher.py",
             "mlflow.source.type": "LOCAL",
             "mlflow.user": "dragunovartur61@gmail.com",
-            "mlflow.artifacts.spn": "/WorkspaceInternal/Mlflow/Artifacts/1425634382141336/Runs/e38f2c8fc3ac41c488d918f40b626178/"
+            "mlflow.artifacts.spn": "/WorkspaceInternal/Mlflow/Artifacts/1425634382141336/Runs/d275be7e6df5485bab4be61018c2d82c/"
         }
     },
     "inputs": {

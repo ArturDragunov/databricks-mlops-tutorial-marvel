@@ -25,6 +25,7 @@ if not is_databricks():
     mlflow.set_registry_uri(f"databricks-uc://{profile}")
 
 
+# config = ProjectConfig.from_yaml(config_path=r"C:\Users\dragu\Documents\GIT\databricks-mlops-tutorial-marvel\project_config_marvel.yml", env="dev")
 config = ProjectConfig.from_yaml(config_path="../project_config_marvel.yml", env="dev")
 spark = SparkSession.builder.getOrCreate()
 tags = Tags(**{"git_sha": "abcd12345", "branch": "main"})
@@ -59,16 +60,21 @@ X_test = test_set[config.num_features + config.cat_features]
 # COMMAND ----------
 pyfunc_model_name = f"{config.catalog_name}.{config.schema_name}.marvel_character_model_custom"
 wrapper = MarvelModelWrapper()
-wrapper.log_register_model(wrapped_model_uri=f"models:/{wrapped_model_version.model_id}", # recreating basic model uri
+# COMMAND ----------
+wrapper.log_register_model(wrapped_model_uri=wrapped_model_version.source,
                            pyfunc_model_name=pyfunc_model_name,
                            experiment_name=config.experiment_name_custom,
                            input_example=X_test[0:1],
                            tags=tags,
                            code_paths=code_paths)
-
 # COMMAND ----------
 # unwrap and predict
 loaded_pufunc_model = mlflow.pyfunc.load_model(f"models:/{pyfunc_model_name}@latest-model")
+
+# to load specific version use:
+# loaded_pufunc_model = mlflow.pyfunc.load_model(f"models:/{pyfunc_model_name}/3")
+
+
 # by unwrapping we get back to our basic model attributes
 # we see sklearn attribute
 unwraped_model = loaded_pufunc_model.unwrap_python_model()

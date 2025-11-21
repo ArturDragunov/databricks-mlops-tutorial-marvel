@@ -20,7 +20,8 @@ class ModelServing:
         self.workspace = WorkspaceClient()
         self.endpoint_name = endpoint_name
         self.model_name = model_name
-
+        import mlflow
+        mlflow.set_registry_uri("databricks-uc")
     def get_latest_model_version(self) -> str:
         """Retrieve the latest version of the model.
 
@@ -36,13 +37,16 @@ class ModelServing:
     ) -> None:
         """Deploy or update the model serving endpoint in Databricks for Marvel characters.
 
-        :param version: Model version to serve (default: "latest")
+        :param version: Model version to serve (default: "latest"). But can be str(int) if you know exact version you need.
         :param workload_size: Size of the serving workload (default: "Small")
         :param scale_to_zero: Whether to enable scale-to-zero (default: True)
         """
+        # see if the endpoint matches our desired endpoint name (if it exists)
         endpoint_exists = any(item.name == self.endpoint_name for item in self.workspace.serving_endpoints.list())
         entity_version = self.get_latest_model_version() if version == "latest" else version
 
+        # we construct a list of entities to serve
+        # we specify the model name, the model version, and the scale
         served_entities = [
             ServedEntityInput(
                 entity_name=self.model_name,
@@ -60,4 +64,6 @@ class ModelServing:
                 ),
             )
         else:
+            # if endpoint already exists (e.g. marvel-character-model-serving is there already),
+            # then we update config to match the latest model version or change parameters.
             self.workspace.serving_endpoints.update_config(name=self.endpoint_name, served_entities=served_entities)

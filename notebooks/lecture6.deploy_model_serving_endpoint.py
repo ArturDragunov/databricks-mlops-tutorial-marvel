@@ -23,8 +23,13 @@ from marvel_characters.utils import is_databricks
 # spark session
 spark = SparkSession.builder.getOrCreate()
 
-w = WorkspaceClient()
+# WorkspaceClient automatically reads your Databricks config profile, host, and token from:
+# ~/.databricks/config
+# environment variables (if set)
 
+w = WorkspaceClient()
+# w.tokens.create generates Personal Access Token (PAT)
+# Specify DATABRICKS_HOST and DATABRICKS_TOKEN in your .env
 os.environ["DBR_HOST"] = w.config.host
 os.environ["DBR_TOKEN"] = w.tokens.create(lifetime_seconds=1200).token_value
 
@@ -42,6 +47,8 @@ schema_name = config.schema_name
 # COMMAND ----------
 # Initialize model serving
 model_serving = ModelServing(
+    # endpoint_name is the name that I want to create in Serving
+    # marvel_character_model_custom is the model name I want to serve
     model_name=f"{catalog_name}.{schema_name}.marvel_character_model_custom", endpoint_name="marvel-character-model-serving"
 )
 
@@ -115,9 +122,9 @@ print(f"Response Text: {response_text}")
 
 # COMMAND ----------
 # Load test
-for i in range(len(dataframe_records)):
-    status_code, response_text = call_endpoint(dataframe_records[i])
-    print(f"Response Status: {status_code}")
-    print(f"Response Text: {response_text}")
-    time.sleep(0.2) 
+# for i in range(len(dataframe_records)):
+#     status_code, response_text = call_endpoint(dataframe_records[i])
+#     print(f"Response Status: {status_code}")
+#     print(f"Response Text: {response_text}")
+#     time.sleep(0.2) 
 # COMMAND ----------

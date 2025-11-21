@@ -108,6 +108,7 @@ mlflow.start_run(run_id=run_id)
 # this will fail: not allowed to overwrite value
 mlflow.log_param("type", "marvel_demo2")
 # COMMAND ----------
+# but you are allowed to log new param
 mlflow.log_param(key="purpose", value="get_certified")
 mlflow.end_run()
 
