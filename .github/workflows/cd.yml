@@ -2,7 +2,7 @@ name: CD
 
 on:
   workflow_dispatch:
-
+# CD is triggered either manually using workflow (UI) or by pushing to main
   push:
     branches:
         - 'main'
@@ -13,23 +13,28 @@ jobs:
     strategy:
       matrix:
         environment: [acc, prd]
+        # matrix strategy which runs the job for both acc and prd environments
     environment: ${{ matrix.environment }}
     permissions:
+      # we grant write permission to contents to be able to push git tags
       contents: write # to push tag
     env:
+      # secrets are taken from GitHub Secrets, vars from GitHub Variables
       DATABRICKS_HOST: ${{ vars.DATABRICKS_HOST }}
       DATABRICKS_CLIENT_ID: ${{ secrets.DATABRICKS_CLIENT_ID }}
       DATABRICKS_CLIENT_SECRET: ${{ secrets.DATABRICKS_CLIENT_SECRET }}
     steps:
       - name: Checkout Source Code
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 #v4.2.2
-
+      #install databricks cli to interact with databricks workspace programmatically
       - name: Install Databricks CLI
         uses: databricks/setup-cli@49580195afe1ccb06d195764a1d0ae9fabfe2edd #v0.246.0
         with:
           version: 0.246.0
 
       - name: Configure Databricks CLI
+      # we use custom profile name "marvelous". We should use the same name in databricks bundle deploy --profile="marvelous"
+      # marvelous profile name should match with databricks.yml profile under each target
         run: |
           mkdir -p ~/.databricks
           cat > ~/.databrickscfg << EOF
@@ -41,8 +46,16 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@0c5e2b8115b80b4c7c5ddf6ffdd634974642d182 #v5.4.1
-
+        
+        
+        # deploy bundle to databricks workspace
+        # 2 variables (git_sha and branch) are passed to the bundle for tracking purposes
       - name: Deploy to Databricks
+      
+      # Sets environment variable to either "acc" or "prd"
+      # Tells databricks CLI which target from databricks.yml to use
+
+      # see for details of next steps in README.md
         env:
           DATABRICKS_BUNDLE_ENV: ${{ matrix.environment }}
         run: |

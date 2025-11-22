@@ -36,7 +36,7 @@ targets:
       # profile should match the one in your .databrickscfg
       # .databrickscfg can be found in your home directory
       # it was generated in the databricks cli setup step
-      profile: dbc-231e176d-b4cc
+      profile: marvelous # ← Must match [marvelous] in .databrickscfg
     variables:
       schedule_pause_status: PAUSED
 
@@ -46,7 +46,7 @@ targets:
     workspace:
       host: https://dbc-231e176d-b4cc.cloud.databricks.com/
       root_path: /Shared/.bundle/${bundle.target}/${bundle.name}
-      profile: dbc-231e176d-b4cc
+      profile: marvelous # ← Must match [marvelous] in .databrickscfg
     variables:
       schedule_pause_status: PAUSED
 
@@ -55,6 +55,6 @@ targets:
     workspace:
       host: https://dbc-231e176d-b4cc.cloud.databricks.com/
       root_path: /Shared/.bundle/${bundle.target}/${bundle.name}
-      profile: dbc-231e176d-b4cc
+      profile: marvelous # ← Must match [marvelous] in .databrickscfg
     variables:
       schedule_pause_status: PAUSED # normally UNPAUSED

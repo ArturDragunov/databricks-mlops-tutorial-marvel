@@ -9,6 +9,12 @@ jobs:
   pytest_and_checks:
     runs-on: ubuntu-latest
     steps:
+        # GitHub Actions runners start empty - no code at all
+        # This action clones your repo into the runner so other steps can access your files
+        # The SHA (11bd719...) pins to an exact version of the checkout action for security
+        # This SHA is from GitHub's actions/checkout repo, not yours - everyone uses the same one
+        # The #v4.2.2 comment just tells humans which version this SHA represents
+        # Only update the SHA when upgrading the action itself, not when you commit to your repo
       - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 #v4.2.2
         with:
           # Fetch all history for all branches and tags
