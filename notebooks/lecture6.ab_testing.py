@@ -10,6 +10,7 @@
 import hashlib
 import os
 import time
+from importlib.metadata import version
 
 import mlflow
 import requests
@@ -21,10 +22,12 @@ from databricks.sdk.service.serving import (
 from dotenv import load_dotenv
 from mlflow.models import infer_signature
 from pyspark.sql import SparkSession
+from mlflow.utils.environment import _mlflow_conda_env
 
 from marvel_characters.config import ProjectConfig, Tags
 from marvel_characters.models.basic_model import BasicModel
 from marvel_characters.utils import is_databricks
+
 
 # COMMAND ----------
 
@@ -51,7 +54,9 @@ catalog_name = config.catalog_name
 schema_name = config.schema_name
 
 # COMMAND ----------
-# Train model A
+# Train model A -> same as in Lecture 4.
+# Runs are written under same marvel-characters-basic experiment
+# Same model name and it falls just as a new version of Basic model in Unity Catalog
 basic_model_a = BasicModel(config=config, tags=tags, spark=spark)
 basic_model_a.load_data()
 basic_model_a.prepare_features()
@@ -62,7 +67,10 @@ model_A_uri = f"models:/{basic_model_a.model_name}@latest-model"
 
 # COMMAND ----------
 # Train model B (with different hyperparameters or features)
+# will be recorded under same marvel-characters-basic experiment, but as a different model name (version 1)
+# because this model we are recording under a different name in Unity Catalog
 basic_model_b = BasicModel(config=config, tags=tags, spark=spark)
+# we are rewriting config parameters: self.config.parameters
 basic_model_b.parameters = {"learning_rate": 0.01, "n_estimators": 1000, "max_depth": 6}
 basic_model_b.model_name = f"{catalog_name}.{schema_name}.marvel_character_model_basic_B"
 basic_model_b.load_data()
@@ -85,6 +93,7 @@ class MarvelModelWrapper(mlflow.pyfunc.PythonModel):
 
     def predict(self, context, model_input):
         # Use PageID (or another unique identifier) for splitting
+        # same ID should always go to same model
         page_id = str(model_input["Id"].values[0])
         hashed_id = hashlib.md5(page_id.encode(encoding="UTF-8")).hexdigest()
         if int(hashed_id, 16) % 2:
@@ -112,20 +121,37 @@ with mlflow.start_run() as run:
     signature = infer_signature(model_input=X_train, model_output={"Prediction": 1, "model": "Model B"})
     dataset = mlflow.data.from_spark(train_set_spark, table_name=f"{catalog_name}.{schema_name}.train_set", version="0")
     mlflow.log_input(dataset, context="training")
+    # Create a conda env with a loose Python pin so the serving build
+    # will resolve an available patch version (e.g. 3.12.x) instead
+    # of trying to use an exact patch like 3.12.12 which may be missing
+    # from the environment's conda channels.
+    additional_pip_deps = []
+    marvel_characters_v = version("marvel_characters")
+    code_paths=[f"../dist/marvel_characters-{marvel_characters_v}-py3-none-any.whl"]
+    for package in code_paths:
+        whl_name = package.split("/")[-1]
+        additional_pip_deps.append(f"code/{whl_name}")
+    # Use a looser Python pin so the serving build can resolve
+    # an available Python patch version (e.g. 3.12.x) in the repo.
+    conda_env = _mlflow_conda_env(
+        additional_conda_deps=["python=3.12"],
+        additional_pip_deps=additional_pip_deps,
+    )
     mlflow.pyfunc.log_model(
         python_model=wrapped_model,
-        artifact_path="pyfunc-marvel-character-model-ab",
+        name="pyfunc-marvel-character-model-ab",
         artifacts={
             "sklearn-pipeline-model-A": model_A_uri,
             "sklearn-pipeline-model-B": model_B_uri},
-        signature=signature
+        signature=signature,
+        conda_env=conda_env,
     )
 model_version = mlflow.register_model(
     model_uri=f"runs:/{run_id}/pyfunc-marvel-character-model-ab", name=model_name
 )
 
 # COMMAND ----------
-# Model serving setup
+# Model serving setup - deploy to serving endpoint
 workspace = WorkspaceClient()
 endpoint_name = "marvel-characters-ab-testing"
 entity_version = model_version.version
@@ -169,16 +195,16 @@ def call_endpoint(record):
         json={"dataframe_records": record},
     )
     return response.status_code, response.text
-
+# in output we see the prediction and the model which was used
 status_code, response_text = call_endpoint(dataframe_records[0])
 print(f"Response Status: {status_code}")
 print(f"Response Text: {response_text}")
 
 # COMMAND ----------
 # Load test
-for i in range(len(dataframe_records)):
-    status_code, response_text = call_endpoint(dataframe_records[i])
-    print(f"Response Status: {status_code}")
-    print(f"Response Text: {response_text}")
-    time.sleep(0.2)
+# for i in range(len(dataframe_records)):
+#     status_code, response_text = call_endpoint(dataframe_records[i])
+#     print(f"Response Status: {status_code}")
+#     print(f"Response Text: {response_text}")
+#     time.sleep(0.2)
 # COMMAND ----------
