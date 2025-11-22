@@ -48,6 +48,7 @@ model_serving = ModelServing(
 )
 
 # Deploy the Marvel model serving endpoint
+# if doesn't exist, it will be created; if it exists, it will be updated to the latest model version
 model_serving.deploy_or_update_serving_endpoint(version=model_version)
 logger.info("Started deployment/update of the Marvel serving endpoint.")
 

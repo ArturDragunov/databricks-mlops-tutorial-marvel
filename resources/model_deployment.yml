@@ -7,12 +7,15 @@ resources:
         timezone_id: "Europe/Amsterdam"
         pause_status: ${var.schedule_pause_status}
       tags:
+        # job is tagged for easy identification
         project_name: "marvel-characters"
+      # we created a job called marvel-characters that is scheduled to run every Monday at 6 AM Amsterdam time
+      # whether it actually runs depends on the pause_status variable defined in databricks.yml
 
       environments:
         - environment_key: default
           spec:
-            client: "3"
+            environment_version: "3"
             dependencies:
               - ../dist/*.whl
 
@@ -44,7 +47,8 @@ resources:
               - "{{job.run_id}}"
               - "--branch"
               - "${var.branch}"
-
+        
+        # model_updated is a conditional task that only runs if the model was updated in the train_model task (previous task)
         - task_key: model_updated
           condition_task:
             op: "EQUAL_TO"

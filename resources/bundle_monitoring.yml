@@ -12,7 +12,7 @@ resources:
       environments:
         - environment_key: monitor-env
           spec:
-            client: "3"
+            environment_version: "3"
             dependencies:
               - ../dist/*.whl
 

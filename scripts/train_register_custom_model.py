@@ -58,7 +58,7 @@ logger.info("Marvel model training completed.")
 # Train the Marvel model
 basic_model.log_model()
 
-# Evaluate Marvel model
+# Evaluate Marvel model -> we compare existing model in registry with the newly trained one
 model_improved = basic_model.model_improved()
 logger.info("Marvel model evaluation completed, model improved: %s", model_improved)
 
@@ -80,6 +80,7 @@ if model_improved:
 
     logger.info("New model registered with version:", latest_version)
     dbutils.jobs.taskValues.set(key="model_version", value=latest_version)
+    # model updated flag is set to 1 only if model was improved
     dbutils.jobs.taskValues.set(key="model_updated", value=1)
 
 else:

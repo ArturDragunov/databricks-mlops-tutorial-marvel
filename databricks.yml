@@ -1,15 +1,19 @@
 bundle:
+  # name of the bundle project
   name: marvel-characters
 
+# additional configuration files to include
 include:
   - resources/*
 
+# We tell the bundle how to build the code that will run in the job
+# artifact will be available to the job once it is deployed
 artifacts:
   default:
     type: whl
     build: uv build
     path: .
-
+# global variables defined for all three targets
 variables:
   git_sha:
     description: git_sha
@@ -29,7 +33,10 @@ targets:
     workspace:
       host: https://dbc-231e176d-b4cc.cloud.databricks.com/
       root_path: /Workspace/Users/${workspace.current_user.userName}/.bundle/${bundle.target}/${bundle.name}
-      profile: marvelous
+      # profile should match the one in your .databrickscfg
+      # .databrickscfg can be found in your home directory
+      # it was generated in the databricks cli setup step
+      profile: dbc-231e176d-b4cc
     variables:
       schedule_pause_status: PAUSED
 
@@ -39,7 +46,7 @@ targets:
     workspace:
       host: https://dbc-231e176d-b4cc.cloud.databricks.com/
       root_path: /Shared/.bundle/${bundle.target}/${bundle.name}
-      profile: marvelous
+      profile: dbc-231e176d-b4cc
     variables:
       schedule_pause_status: PAUSED
 
@@ -48,6 +55,6 @@ targets:
     workspace:
       host: https://dbc-231e176d-b4cc.cloud.databricks.com/
       root_path: /Shared/.bundle/${bundle.target}/${bundle.name}
-      profile: marvelous
+      profile: dbc-231e176d-b4cc
     variables:
       schedule_pause_status: PAUSED # normally UNPAUSED
