@@ -31,5 +31,6 @@ config = ProjectConfig.from_yaml(config_path=config_path, env=args.env)
 
 spark = DatabricksSession.builder.getOrCreate()
 workspace = WorkspaceClient()
-
+# same logic as in the notebook L10
+# we created a separete databricks workflow in our bundle - bundle_monitoring.yml
 create_or_refresh_monitoring(config=config, spark=spark, workspace=workspace)

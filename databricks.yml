@@ -3,6 +3,7 @@ bundle:
   name: marvel-characters
 
 # additional configuration files to include
+# one file for training workflow, another one for monitoring
 include:
   - resources/*
 

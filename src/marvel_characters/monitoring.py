@@ -121,7 +121,7 @@ def create_or_refresh_monitoring(config: ProjectConfig, spark: SparkSession, wor
     final_count = df_final_with_status.count()
     logger.info(f"Final record count before writing to monitoring table: {final_count}")
 
-    # Write to the monitoring table
+    # Write to the monitoring table -> parse data to monitoring table
     df_final_with_status.write.format("delta").mode("append").saveAsTable(
         f"{config.catalog_name}.{config.schema_name}.model_monitoring"
     )
@@ -161,9 +161,9 @@ def create_monitoring_table(config: ProjectConfig, spark: SparkSession, workspac
         output_schema_name=f"{config.catalog_name}.{config.schema_name}",
         inference_log=MonitorInferenceLog(
             problem_type=MonitorInferenceLogProblemType.PROBLEM_TYPE_CLASSIFICATION,
-            prediction_col="prediction",
-            timestamp_col="timestamp",
-            granularities=["30 minutes"],
+            prediction_col="prediction", # col name is prediction
+            timestamp_col="timestamp", # timestamp column from monitoring table
+            granularities=["30 minutes"], # metrics will be aggregated and refreshed in 30 minutes intervals
             model_id_col="model_name",
         ),
     )
